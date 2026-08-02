@@ -23,11 +23,6 @@ global.WEBVIEW = global.WEBVIEW || {
       position: {},
       time: new Date(),
     },
-    swipe: {
-      edge: null,
-      x: 0,
-      y: 0,
-    },
     window: {
       status: null,
     },
@@ -158,6 +153,7 @@ const init = async () => {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        preload: path.join(APP.path, "js", "swipe-preload.js"),
       },
     });
     view.setVisible(i === 0);
@@ -1075,6 +1071,17 @@ const viewEvents = async () => {
     return done;
   };
 
+  // Handle edge swipe gesture to switch pages
+  ipcMain.on("view-swipe", (e, data) => {
+    console.debug(`webview.js: viewEvents(swipe-${data.edge})`);
+    WEBVIEW.tracker.pointer.time = new Date();
+    if (data.edge === "top") {
+      previousView();
+    } else if (data.edge === "bottom") {
+      nextView();
+    }
+  });
+
   // Handle events per webview
   WEBVIEW.views.forEach((view, i) => {
     // Enable webview touch emulation
@@ -1152,23 +1159,6 @@ const viewEvents = async () => {
       // Check mouse event type
       switch (mouse.type) {
         case "mouseMove":
-          // Detect edge swipe gesture to switch pages
-          const swipe = WEBVIEW.tracker.swipe;
-          if (swipe.edge) {
-            const edgeSwipeThreshold = 80;
-            const dx = mouse.x - swipe.x;
-            const dy = mouse.y - swipe.y;
-            if (swipe.edge === "top" && dy > edgeSwipeThreshold && dy > Math.abs(dx)) {
-              console.debug(`webview.js: viewEvents(${i},swipe-top-previous)`);
-              WEBVIEW.tracker.swipe.edge = null;
-              previousView();
-            } else if (swipe.edge === "bottom" && -dy > edgeSwipeThreshold && -dy > Math.abs(dx)) {
-              console.debug(`webview.js: viewEvents(${i},swipe-bottom-next)`);
-              WEBVIEW.tracker.swipe.edge = null;
-              nextView();
-            }
-          }
-
           const posNew = { x: Math.round(mouse.globalX), y: Math.round(mouse.globalY) };
           if (posNew.x < 0 || posNew.y < 0) {
             break;
@@ -1190,18 +1180,6 @@ const viewEvents = async () => {
           break;
         case "mouseDown":
           console.debug(`webview.js: viewEvents(${i},${mouse.type}-${mouse.button})`);
-
-          // Start swipe gesture tracking if touch begins near the top or bottom edge
-          const edgeSwipeMargin = 60;
-          const height = view.getBounds().height;
-          if (mouse.button === "left" && mouse.y <= edgeSwipeMargin) {
-            WEBVIEW.tracker.swipe = { edge: "top", x: mouse.x, y: mouse.y };
-          } else if (mouse.button === "left" && mouse.y >= height - edgeSwipeMargin) {
-            WEBVIEW.tracker.swipe = { edge: "bottom", x: mouse.x, y: mouse.y };
-          } else {
-            WEBVIEW.tracker.swipe.edge = null;
-          }
-
           switch (mouse.button) {
             case "left":
               const off = WEBVIEW.tracker.display.off > WEBVIEW.tracker.display.on;
@@ -1224,9 +1202,6 @@ const viewEvents = async () => {
               historyForward();
               break;
           }
-          break;
-        case "mouseUp":
-          WEBVIEW.tracker.swipe.edge = null;
           break;
       }
     });
