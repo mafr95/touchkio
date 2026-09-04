@@ -107,6 +107,20 @@ The setup procedure can be skipped to use the existing default arguments from th
 bash <(wget -qO- https://raw.githubusercontent.com/leukipp/touchkio/main/install.sh) update
 ```
 
+#### Fork
+If you are running a custom fork of this repository (e.g. with local patches on top of upstream), the [install.sh](https://github.com/leukipp/touchkio/blob/main/install.sh) script above won't help, since it always downloads the official releases from `leukipp/touchkio`. Instead, build and install your fork directly on the target device:
+```bash
+cd ~/touchkio-dev
+git checkout -- yarn.lock
+rm -f package-lock.json
+git pull
+yarn install
+yarn build
+sudo apt install ./out/make/deb/arm64/touchkio_*.deb
+systemctl --user restart touchkio.service
+```
+Use `x64` instead of `arm64` in the `.deb` path if your device runs on that architecture.
+
 ## Configuration
 Running `touchkio --setup` will prompt you to enter arguments that will be used when the application starts without any specified arguments.
 These default arguments are stored in `~/.config/touchkio/Arguments.json`, where they can also be modified.
