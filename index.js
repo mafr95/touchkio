@@ -7,6 +7,7 @@ const hardware = require("./js/hardware");
 const webview = require("./js/webview");
 const log = require("electron-log");
 const { app, powerMonitor } = require("electron");
+const Bonjour = require("bonjour-service");
 const Events = require("events");
 
 global.APP = global.APP || {};
@@ -17,6 +18,8 @@ global.EVENTS = global.EVENTS || new Events();
  * This method resolves when the app has finished initializing,
  * allowing to safely create browser windows and perform other
  * initialization tasks.
+ *
+ * @returns {Promise<void>}
  */
 app.whenReady().then(async () => {
   if (!(await initApp()) || !(await initArgs()) || !(await initLog())) {
@@ -49,7 +52,7 @@ app.whenReady().then(async () => {
 /**
  * Initializes the global app object.
  *
- * @returns {bool} Returns true if the initialization was successful.
+ * @returns {Promise<boolean>} True if the initialization was successful.
  */
 const initApp = async () => {
   const packageJsonPath = path.join(app.getAppPath(), "package.json");
@@ -130,7 +133,7 @@ const initApp = async () => {
 /**
  * Initializes the global args object.
  *
- * @returns {bool} Returns true if the initialization was successful.
+ * @returns {Promise<boolean>} True if the initialization was successful.
  */
 const initArgs = async () => {
   let args = parseArgs(process);
@@ -154,9 +157,9 @@ const initArgs = async () => {
 
   // Setup arguments from file path
   if ((!argsProvided && !argsFileExists) || "setup" in args) {
-    await sleep(3000);
+    const defaults = { ip: (await discover(3000)) || "192.168.1.42" };
     do {
-      args = await promptArgs(process);
+      args = await promptArgs(process, defaults);
     } while (!Object.keys(args).length);
     writeArgs(argsFilePath, args);
   } else if (argsFileExists) {
@@ -202,7 +205,7 @@ const initArgs = async () => {
 /**
  * Initializes the global log object.
  *
- * @returns {bool} Returns true if the initialization was successful.
+ * @returns {Promise<boolean>} True if the initialization was successful.
  */
 const initLog = async () => {
   try {
@@ -260,6 +263,44 @@ const initLog = async () => {
 };
 
 /**
+ * Discovers a Home Assistant IPv4 via Bonjour/mDNS on the local network.
+ *
+ * @param {number} [wait] - Minimum wait in milliseconds.
+ * @returns {Promise<string|null>} The first IPv4 address found or null.
+ */
+const discover = async (wait = 3000) => {
+  const started = Date.now();
+  const bonjour = new Bonjour();
+  const ip = await new Promise((resolve) => {
+    let timer;
+    let done = false;
+    const finish = (value) => {
+      if (!done) {
+        done = true;
+        clearTimeout(timer);
+        try {
+          browser.stop();
+          bonjour.destroy();
+        } catch {}
+        resolve(value || null);
+      }
+    };
+    timer = setTimeout(() => finish(null), wait * 2);
+    const browser = bonjour.find({ type: "home-assistant", protocol: "tcp" }, (service) => {
+      const found = (service.addresses || []).find((a) => /^\d+\.\d+\.\d+\.\d+$/.test(a) && !a.startsWith("127."));
+      if (found) {
+        finish(found);
+      }
+    });
+  });
+  const remaining = wait - (Date.now() - started);
+  if (remaining > 0) {
+    await sleep(remaining);
+  }
+  return ip;
+};
+
+/**
  * Parses command-line arguments from the given process object.
  *
  * @param {Object} proc - The process object.
@@ -279,9 +320,10 @@ const parseArgs = (proc) => {
  * Prompts argument values on the command-line.
  *
  * @param {Object} proc - The process object.
- * @returns {Object} An object mapping argument names to their corresponding values.
+ * @param {Object} defaults - Default values for prompt fallback values.
+ * @returns {Promise<Object>} An object mapping argument names to their corresponding values.
  */
-const promptArgs = async (proc) => {
+const promptArgs = async (proc, defaults) => {
   const read = readline.createInterface({
     input: proc.stdin,
     output: proc.stdout,
@@ -292,7 +334,7 @@ const promptArgs = async (proc) => {
     {
       key: "web_url",
       question: "\nEnter WEB url",
-      fallback: "http://192.168.1.42:8123",
+      fallback: `http://${defaults.ip}:8123`,
     },
     {
       key: "web_theme",
@@ -310,6 +352,11 @@ const promptArgs = async (proc) => {
       fallback: "true",
     },
     {
+      key: "web_pager",
+      question: "Enter WEB pager enabled",
+      fallback: "true",
+    },
+    {
       key: "mqtt",
       question: "\nConnect to MQTT Broker?",
       fallback: "y/N",
@@ -317,12 +364,12 @@ const promptArgs = async (proc) => {
     {
       key: "mqtt_url",
       question: "\nEnter MQTT url",
-      fallback: "mqtt://192.168.1.42:1883",
+      fallback: `mqtt://${defaults.ip}:1883`,
     },
     {
       key: "mqtt_user",
-      question: "Enter MQTT username",
-      fallback: "kiosk",
+      question: "Enter MQTT user",
+      fallback: "user",
     },
     {
       key: "mqtt_password",
@@ -388,6 +435,7 @@ const promptArgs = async (proc) => {
  *
  * @param {string} file - Path of the .json file.
  * @param {Object} args - The arguments object.
+ * @returns {void}
  */
 const writeArgs = (file, args) => {
   try {
@@ -460,7 +508,7 @@ const decrypt = (value) => {
  * Helper function for asynchronous sleep.
  *
  * @param {number} ms - Sleep time in milliseconds.
- * @returns {Promise} A promise resolving after the timeout.
+ * @returns {Promise<void>}
  */
 const sleep = (ms) => {
   return new Promise((r) => setTimeout(r, ms));
@@ -470,6 +518,8 @@ const sleep = (ms) => {
  * This method runs immediately when the process starts,
  * allowing to check necessary environment variables and
  * append internal command line switches.
+ *
+ * @returns {void}
  */
 (() => {
   console.debug = () => {};
