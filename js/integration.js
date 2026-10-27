@@ -47,6 +47,12 @@ const init = async () => {
     sw_version: `${APP.name}-v${APP.version}`,
     configuration_url: APP.homepage,
   };
+  INTEGRATION.availability = [
+    {
+      topic: `${INTEGRATION.root}/kiosk/state`,
+      value_template: "{{ 'offline' if value == 'Terminated' else 'online' }}",
+    },
+  ];
 
   // Init options
   const masked = password && "*".repeat(password.length);
@@ -283,6 +289,7 @@ const initApp = () => {
     name: "App",
     unique_id: `${INTEGRATION.node}_app`,
     state_topic: `${root}/version/state`,
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
     ...(HARDWARE.support.access.install &&
       HARDWARE.support.access.service &&
@@ -353,6 +360,7 @@ const initShutdown = () => {
     unique_id: `${INTEGRATION.node}_shutdown`,
     command_topic: `${root}/execute`,
     icon: "mdi:power",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (!HARDWARE.support.access.shutdown || ARGS.app_disable.includes("mqtt_shutdown")) {
@@ -383,6 +391,7 @@ const initReboot = () => {
     unique_id: `${INTEGRATION.node}_reboot`,
     command_topic: `${root}/execute`,
     icon: "mdi:restart",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (!HARDWARE.support.access.reboot || ARGS.app_disable.includes("mqtt_reboot")) {
@@ -413,6 +422,7 @@ const initRefresh = () => {
     unique_id: `${INTEGRATION.node}_refresh`,
     command_topic: `${root}/execute`,
     icon: "mdi:web-refresh",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_refresh")) {
@@ -472,9 +482,7 @@ const initKiosk = () => {
  * @returns {Promise<void>}
  */
 const updateKiosk = async () => {
-  if (ARGS.app_disable.includes("mqtt_kiosk")) {
-    return;
-  }
+  // Always published, the kiosk state is the availability topic of all entities
   const kiosk = WEBVIEW.tracker.window.status;
   publishState("kiosk", kiosk, true);
 };
@@ -494,6 +502,7 @@ const initTheme = () => {
     value_template: "{{ value }}",
     options: ["Light", "Dark"],
     icon: "mdi:compare",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_theme")) {
@@ -540,6 +549,7 @@ const initWidget = () => {
     value_template: "{{ value }}",
     options: ["Enabled", "Disabled"],
     icon: "mdi:page-layout-sidebar-right",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_widget")) {
@@ -588,6 +598,7 @@ const initDisplay = () => {
     supported_color_modes: [HARDWARE.support.displayBrightness ? "brightness" : "onoff"],
     icon: "mdi:monitor-shimmer",
     platform: "light",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
     ...(HARDWARE.support.displayBrightness && {
       brightness_command_topic: `${root}/brightness/set`,
@@ -662,6 +673,7 @@ const initVolume = () => {
     max: 100,
     unit_of_measurement: "%",
     icon: "mdi:volume-high",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (!HARDWARE.support.audioVolume || ARGS.app_disable.includes("mqtt_volume")) {
@@ -711,6 +723,7 @@ const initMicrophone = () => {
     max: 100,
     unit_of_measurement: "%",
     icon: "mdi:microphone",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (!HARDWARE.support.microphoneVolume || ARGS.app_disable.includes("mqtt_microphone")) {
@@ -755,6 +768,7 @@ const initKeyboard = () => {
     command_topic: `${root}/set`,
     state_topic: `${root}/state`,
     icon: "mdi:keyboard-close-outline",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (!HARDWARE.support.keyboardVisibility || ARGS.app_disable.includes("mqtt_keyboard")) {
@@ -806,6 +820,7 @@ const initPageNumber = () => {
     max: WEBVIEW.viewUrls.length - 1,
     unit_of_measurement: "Page",
     icon: "mdi:page-next",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (WEBVIEW.viewUrls.length <= 2 || ARGS.app_disable.includes("mqtt_page_number")) {
@@ -859,6 +874,7 @@ const initPageZoom = () => {
     step: 5,
     unit_of_measurement: "%",
     icon: "mdi:magnify-plus",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_page_zoom")) {
@@ -908,6 +924,7 @@ const initPageUrl = () => {
     value_template: "{{ value }}",
     pattern: "https?://.*",
     icon: "mdi:web",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_page_url")) {
@@ -958,6 +975,7 @@ const initPager = () => {
     value_template: "{{ value }}",
     options: ["Enabled", "Disabled"],
     icon: "mdi:view-carousel",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (WEBVIEW.viewUrls.length <= 2 || ARGS.app_disable.includes("mqtt_pager")) {
@@ -1004,6 +1022,7 @@ const initModel = () => {
     json_attributes_topic: `${root}/attributes`,
     value_template: "{{ value }}",
     icon: "mdi:raspberry-pi",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_model")) {
@@ -1041,6 +1060,7 @@ const initSerialNumber = () => {
     state_topic: `${root}/state`,
     value_template: "{{ value }}",
     icon: "mdi:hexadecimal",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_serial_number")) {
@@ -1078,6 +1098,7 @@ const initNetworkAddress = () => {
     json_attributes_topic: `${root}/attributes`,
     value_template: "{{ value }}",
     icon: "mdi:ip-network",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_network_address")) {
@@ -1118,6 +1139,7 @@ const initHostName = () => {
     state_topic: `${root}/state`,
     value_template: "{{ value }}",
     icon: "mdi:console-network",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_host_name")) {
@@ -1156,6 +1178,7 @@ const initUpTime = () => {
     value_template: "{{ (value | float) | round(0) }}",
     unit_of_measurement: "min",
     icon: "mdi:timeline-clock",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_up_time")) {
@@ -1198,6 +1221,7 @@ const initMemorySize = () => {
     value_template: "{{ (value | float) | round(2) }}",
     unit_of_measurement: "GiB",
     icon: "mdi:memory",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_memory_size")) {
@@ -1235,6 +1259,7 @@ const initMemoryUsage = () => {
     value_template: "{{ (value | float) | round(0) }}",
     unit_of_measurement: "%",
     icon: "mdi:memory-arrow-down",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_memory_usage")) {
@@ -1272,6 +1297,7 @@ const initProcessorUsage = () => {
     value_template: "{{ (value | float) | round(0) }}",
     unit_of_measurement: "%",
     icon: "mdi:cpu-64-bit",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_processor_usage")) {
@@ -1309,6 +1335,7 @@ const initProcessorTemperature = () => {
     value_template: "{{ (value | float) | round(0) }}",
     unit_of_measurement: "°C",
     icon: "mdi:radiator",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_processor_temperature")) {
@@ -1346,6 +1373,7 @@ const initBatteryLevel = () => {
     value_template: "{{ (value | float) | round(0) }}",
     unit_of_measurement: "%",
     icon: "mdi:battery-medium",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (!HARDWARE.support.batteryLevel || ARGS.app_disable.includes("mqtt_battery_level")) {
@@ -1384,6 +1412,7 @@ const initIlluminanceLevel = () => {
     unit_of_measurement: "lx",
     device_class: "illuminance",
     icon: "mdi:brightness-5",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (!HARDWARE.support.illuminanceLevel || ARGS.app_disable.includes("mqtt_illuminance_level")) {
@@ -1421,6 +1450,7 @@ const initPackageUpgrades = () => {
     json_attributes_topic: `${root}/attributes`,
     value_template: "{{ value | int }}",
     icon: "mdi:package-down",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_package_upgrades")) {
@@ -1466,6 +1496,7 @@ const initLastActive = () => {
     value_template: "{{ (value | float) | round(0) }}",
     unit_of_measurement: "min",
     icon: "mdi:gesture-tap-hold",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_last_active")) {
@@ -1512,6 +1543,7 @@ const initScreenshot = () => {
     content_type: "image/png",
     entity_category: "diagnostic",
     icon: "mdi:image-area",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_screenshot")) {
@@ -1553,6 +1585,7 @@ const initErrors = () => {
     value_template: "{{ value | int }}",
     entity_category: "diagnostic",
     icon: "mdi:alert-circle",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_errors")) {
@@ -1601,6 +1634,7 @@ const initVersion = () => {
     value_template: "{{ value }}",
     entity_category: "diagnostic",
     icon: "mdi:application-braces",
+    availability: INTEGRATION.availability,
     device: INTEGRATION.device,
   };
   if (ARGS.app_disable.includes("mqtt_version")) {
